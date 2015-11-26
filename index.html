@@ -42,149 +42,337 @@ svg {
   </head>
   <body>
     <script type="text/javascript" src="d3/d3.min.js"></script>
+    <script src="topojson.min.js"></script>
+    <script src="node_modules/datamaps/dist/datamaps.world.min.js"></script>
+    <div id="container" style="position: relative; width: 1100px; height: 900px;"></div>
     <script type="text/javascript">
 
-var m = [30, 10, 10, 10],
-    w = 960 - m[1] - m[3],
-    h = 600 - m[0] - m[2];
 
-var x = d3.scale.ordinal().rangePoints([0, w], 1),
-    y = {},
-    dragging = {};
+      var countryNames = ["Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi", "Cameroon", "Chad", "Djibouti", "Egypt", "Equatorial Guinea", "Eritrea", "Ethiopia", "Gabon", "Gambia", "Ghana", "Guinea", "Guinea-Bissau", "Ivory Coast", "Kenya", "Lesotho", "Liberia", "Libya", "Madagascar", "Malawi", "Mali", "Mauritania", "Morocco", "Mozambique", "Namibia", "Niger", "Nigeria", "Republic of Congo", "Rwanda", "Senegal", "Sierra Leone", "Somalia", "South Africa", "South Sudan", "Sudan", "Swaziland", "Tanzania", "Togo", "Tunisia", "Uganda", "Zambia", "Zimbabwe"];
 
-var line = d3.svg.line(),
-    axis = d3.svg.axis().orient("left"),
-    background,
-    foreground;
+      // Country Codes
 
-var svg = d3.select("body").append("svg:svg")
-    .attr("width", w + m[1] + m[3])
-    .attr("height", h + m[0] + m[2])
-  .append("svg:g")
-    .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
+      var codes = {};
+      codes["Algeria"] = "DZA";
+      codes["Angola"] = "AGO";
+      codes["Benin"] = "BEN";
+      codes["Botswana"] = "BWA";
+      codes["Burkina Faso"] = "BFA";
+      codes["Burundi"] = "BDI";
+      codes["Cameroon"] = "CMR";
+      codes["Chad"] = "TCD";
+      codes["Djibouti"] = "DJI";
+      codes["Egypt"] = "EGY";
+      codes["Equatorial Guinea"] = "GNQ";
+      codes["Eritrea"] = "ERI";
+      codes["Ethiopia"] = "ETH";
+      codes["Gabon"] = "GAB";
+      codes["Gambia"] = "GMB";
+      codes["Ghana"] =  "GHA";
+      codes["Guinea"] = "GIN";
+      codes["Guinea-Bissau"] = "GNB";
+      codes["Ivory Coast"] = "CIV";
+      codes["Kenya"] = "KEN";
+      codes["Lesotho"] = "LSO";
+      codes["Liberia"] = "LBR";
+      codes["Libya"] = "LBY";
+      codes["Madagascar"] = "MDG";
+      codes["Malawi"] = "MWI";
+      codes["Mali"] = "MLI";
+      codes["Mauritania"] = "MRT";
+      codes["Morocco"] = "MAR";
+      codes["Mozambique"] = "MOZ";
+      codes["Namibia"] = "NAM"
+      codes["Niger"] = "NER";
+      codes["Nigeria"] = "NGA";
+      codes["Republic of Congo"] = "COD";
+      codes["Rwanda"] = "RWA";
+      codes["Senegal"] = "SEN";
+      codes["Sierra Leone"] = "SLE";
+      codes["Somalia"] = "SOM";
+      codes["South Africa"] = "ZAF";
+      codes["South Sudan"] = "SSD";
+      codes["Sudan"] = "SDN";
+      codes["Swaziland"] = "SWZ";
+      codes["Tanzania"] = "TZA";
+      codes["Togo"] = "TGO";
+      codes["Tunisia"] = "TUN";
+      codes["Uganda"] = "UGA";
+      codes["Zambia"] = "ZMB";
+      codes["Zimbabwe"] = "ZWE";
 
-d3.csv("cambodiaOut.csv", function(cars) {
+      var longs = {};
+      var lats = {};
 
-  // Extract the list of dimensions and create a scale for each.
-  x.domain(dimensions = d3.keys(cars[0]).filter(function(d) {
+      var sums = {};
+      sums["Algeria"] = 0;
+      sums["Angola"] = 0;
+      sums["Benin"] = 0;
+      sums["Botswana"] = 0;
+      sums["Burkina Faso"] = 0;
+      sums["Burundi"] = 0;
+      sums["Cameroon"] = 0;
+      sums["Chad"] = 0;
+      sums["Djibouti"] = 0;
+      sums["Egypt"] = 0;
+      sums["Equatorial Guinea"] = 0;
+      sums["Eritrea"] = 0;
+      sums["Ethiopia"] = 0;
+      sums["Gabon"] = 0;
+      sums["Gambia"] = 0;
+      sums["Ghana"] =  0;
+      sums["Guinea"] = 0;
+      sums["Guinea-Bissau"] = 0;
+      sums["Ivory Coast"] = 0;
+      sums["Kenya"] = 0;
+      sums["Lesotho"] = 0;
+      sums["Liberia"] = 0;
+      sums["Libya"] = 0;
+      sums["Madagascar"] = 0;
+      sums["Malawi"] = 0;
+      sums["Mali"] = 0;
+      sums["Mauritania"] = 0;
+      sums["Morocco"] = 0;
+      sums["Mozambique"] = 0;
+      sums["Namibia"] = 0
+      sums["Niger"] = 0;
+      sums["Nigeria"] = 0;
+      sums["Republic of Congo"] = 0;
+      sums["Rwanda"] = 0;
+      sums["Senegal"] = 0;
+      sums["Sierra Leone"] = 0;
+      sums["Somalia"] = 0;
+      sums["South Africa"] = 0;
+      sums["South Sudan"] = 0;
+      sums["Sudan"] = 0;
+      sums["Swaziland"] = 0;
+      sums["Tanzania"] = 0;
+      sums["Togo"] = 0;
+      sums["Tunisia"] = 0;
+      sums["Uganda"] = 0;
+      sums["Zambia"] = 0;
+      sums["Zimbabwe"] = 0;
 
-    if(d === "origin") return false;
+      var dataset = {};
 
-    if(d === "destination") {
-        y[d] = d3.scale.ordinal()
-          .domain(cars.map(function(p) { return p[d]; }))
-          .rangePoints([h, 0]);
+      var series = [];
 
-    }
-    else {
-        y[d] = d3.scale.linear()
-          .domain(d3.extent(cars, function(p) { return +p[d]; }))
-          .range([h, 0]);
-    }
+      var year = 1999;
 
-    return true;
+      d3.csv("conflictSize.csv", function(conflicts) {
 
-    return d != "origin" && d != "destination" && (y[d] = d3.scale.linear()
-        .domain(d3.extent(cars, function(p) { return +p[d]; }))
-        .range([h, 0]));
-  }));
+        conflicts.forEach(function(c) {
+          if(countryNames.indexOf(c.COUNTRY) !== -1) {
+            if(!isNaN(parseInt(c.FATALITIES)) && parseInt(c.YEAR) === year) sums[c.COUNTRY] += parseInt(c.FATALITIES);
+          }
+        })
 
-  // Add grey background lines for context.
-  background = svg.append("svg:g")
-      .attr("class", "background")
-    .selectAll("path")
-      .data(cars)
-    .enter().append("svg:path")
-      .attr("d", path);
+        //creat shading series
+        countryNames.forEach(function(n) {
+          var code = codes[n];
+          var numberOfRefugees = sums[n];
+          console.log(n);
+          console.log(sums[n]);
+          series.push([code, numberOfRefugees])
+        });
 
-  // stroke with color switch
-  foreground = svg.append("svg:g")
-      .attr("class", "foreground")
-    .selectAll("path")
-      .data(cars)
-    .enter().append("svg:path")
-      .attr("d", path)
-      .style("stroke", function(d) {
-       if (d.destination.indexOf("United States") > -1)
-         return "red"
-       else
-         return "steelblue"
+        var onlyValues = series.map(function(obj){ return obj[1]; });
+        var minValue = Math.min.apply(null, onlyValues), maxValue = Math.max.apply(null, onlyValues);
+
+        // color palette
+        var paletteScale = d3.scale.linear()
+                .domain([minValue,maxValue])
+                .range(["#EFEFFF","#02386F"]);
+
+        series.forEach(function(item){ //
+            var iso = item[0], value = item[1];
+            dataset[iso] = { numberOfThings: value, fillColor: paletteScale(value) };
+        });
+
+        d3.csv("countries.csv", function(countries) {
+          countries.forEach(function(c) {
+            longs[c.country] = parseFloat(c.longitude);
+            lats[c.country] = parseFloat(c.latitude);
+          });
+
+          var map = new Datamap({
+            element: document.getElementById('container'),
+            projection: 'mercator',
+            fills: { defaultFill: '#F5F5F5' },
+            data: dataset,
+            geographyConfig: {
+                borderColor: '#DEDEDE',
+                highlightBorderWidth: 2,
+                // don't change color on mouse hover
+                highlightFillColor: function(geo) {
+                    return geo['fillColor'] || '#F5F5F5';
+                },
+                // only change border
+                highlightBorderColor: '#B7B7B7'
+            }
+        });
+
+          map.arc([{
+            origin: {
+              latitude: lats['Algeria'],
+              longitude: longs['Algeria']
+            },
+            destination: {
+              latitude: lats['France'],
+              longitude: longs['France']
+            }
+            }], {
+              greatArc: true,
+              animationSpeed: 2000
+          });
+
+        });
       });
 
-  // Add a group element for each dimension.
-  var g = svg.selectAll(".dimension")
-      .data(dimensions)
-    .enter().append("svg:g")
-      .attr("class", "dimension")
-      .attr("transform", function(d) { return "translate(" + x(d) + ")"; })
-      .call(d3.behavior.drag()
-        .on("dragstart", function(d) {
-          dragging[d] = this.__origin__ = x(d);
-          background.attr("visibility", "hidden");
-        })
-        .on("drag", function(d) {
-          dragging[d] = Math.min(w, Math.max(0, this.__origin__ += d3.event.dx));
-          foreground.attr("d", path);
-          dimensions.sort(function(a, b) { return position(a) - position(b); });
-          x.domain(dimensions);
-          g.attr("transform", function(d) { return "translate(" + position(d) + ")"; })
-        })
-        .on("dragend", function(d) {
-          delete this.__origin__;
-          delete dragging[d];
-          transition(d3.select(this)).attr("transform", "translate(" + x(d) + ")");
-          transition(foreground)
-              .attr("d", path);
-          background
-              .attr("d", path)
-              .transition()
-              .delay(500)
-              .duration(0)
-              .attr("visibility", null);
-        }));
 
-  // Add an axis and title.
-  g.append("svg:g")
-      .attr("class", "axis")
-      .each(function(d) { d3.select(this).call(axis.scale(y[d])); })
-    .append("svg:text")
-      .attr("text-anchor", "middle")
-      .attr("y", -9)
-      .text(String);
+      /////// Parallel Coordinates //////
 
-  // Add and store a brush for each axis.
-  g.append("svg:g")
-      .attr("class", "brush")
-      .each(function(d) { d3.select(this).call(y[d].brush = d3.svg.brush().y(y[d]).on("brush", brush)); })
-    .selectAll("rect")
-      .attr("x", -8)
-      .attr("width", 16);
-});
+      // var m = [30, 10, 10, 10],
+      //     w = 960 - m[1] - m[3],
+      //     h = 600 - m[0] - m[2];
 
-function position(d) {
-  var v = dragging[d];
-  return v == null ? x(d) : v;
-}
+      // var x = d3.scale.ordinal().rangePoints([0, w], 1),
+      //     y = {},
+      //     dragging = {};
 
-function transition(g) {
-  return g.transition().duration(500);
-}
+      // var line = d3.svg.line(),
+      //     axis = d3.svg.axis().orient("left"),
+      //     background,
+      //     foreground;
 
-// Returns the path for a given data point.
-function path(d) {
-  return line(dimensions.map(function(p) { return [position(p), y[p](d[p])]; }));
-}
+      // var svg = d3.select("body").append("svg:svg")
+      //     .attr("width", w + m[1] + m[3])
+      //     .attr("height", h + m[0] + m[2])
+      //   .append("svg:g")
+      //     .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
 
-// Handles a brush event, toggling the display of foreground lines.
-function brush() {
-  var actives = dimensions.filter(function(p) { return !y[p].brush.empty(); }),
-      extents = actives.map(function(p) { return y[p].brush.extent(); });
-  foreground.style("display", function(d) {
-    return actives.every(function(p, i) {
-      return extents[i][0] <= d[p] && d[p] <= extents[i][1];
-    }) ? null : "none";
-  });
-}
+      // d3.csv("cambodiaOut.csv", function(cars) {
+
+      //   // Extract the list of dimensions and create a scale for each.
+      //   x.domain(dimensions = d3.keys(cars[0]).filter(function(d) {
+
+      //     if(d === "origin") return false;
+
+      //     if(d === "destination") {
+      //         y[d] = d3.scale.ordinal()
+      //           .domain(cars.map(function(p) { return p[d]; }))
+      //           .rangePoints([h, 0]);
+
+      //     }
+      //     else {
+      //         y[d] = d3.scale.linear()
+      //           .domain(d3.extent(cars, function(p) { return +p[d]; }))
+      //           .range([h, 0]);
+      //     }
+
+      //     return true;
+
+      //     return d != "origin" && d != "destination" && (y[d] = d3.scale.linear()
+      //         .domain(d3.extent(cars, function(p) { return +p[d]; }))
+      //         .range([h, 0]));
+      //   }));
+
+      //   // Add grey background lines for context.
+      //   background = svg.append("svg:g")
+      //       .attr("class", "background")
+      //     .selectAll("path")
+      //       .data(cars)
+      //     .enter().append("svg:path")
+      //       .attr("d", path);
+
+      //   // stroke with color switch
+      //   foreground = svg.append("svg:g")
+      //       .attr("class", "foreground")
+      //     .selectAll("path")
+      //       .data(cars)
+      //     .enter().append("svg:path")
+      //       .attr("d", path)
+      //       .style("stroke", function(d) {
+      //        if (d.destination.indexOf("United States") > -1)
+      //          return "red"
+      //        else
+      //          return "steelblue"
+      //       });
+
+      //   // Add a group element for each dimension.
+      //   var g = svg.selectAll(".dimension")
+      //       .data(dimensions)
+      //     .enter().append("svg:g")
+      //       .attr("class", "dimension")
+      //       .attr("transform", function(d) { return "translate(" + x(d) + ")"; })
+      //       .call(d3.behavior.drag()
+      //         .on("dragstart", function(d) {
+      //           dragging[d] = this.__origin__ = x(d);
+      //           background.attr("visibility", "hidden");
+      //         })
+      //         .on("drag", function(d) {
+      //           dragging[d] = Math.min(w, Math.max(0, this.__origin__ += d3.event.dx));
+      //           foreground.attr("d", path);
+      //           dimensions.sort(function(a, b) { return position(a) - position(b); });
+      //           x.domain(dimensions);
+      //           g.attr("transform", function(d) { return "translate(" + position(d) + ")"; })
+      //         })
+      //         .on("dragend", function(d) {
+      //           delete this.__origin__;
+      //           delete dragging[d];
+      //           transition(d3.select(this)).attr("transform", "translate(" + x(d) + ")");
+      //           transition(foreground)
+      //               .attr("d", path);
+      //           background
+      //               .attr("d", path)
+      //               .transition()
+      //               .delay(500)
+      //               .duration(0)
+      //               .attr("visibility", null);
+      //         }));
+
+      //   // Add an axis and title.
+      //   g.append("svg:g")
+      //       .attr("class", "axis")
+      //       .each(function(d) { d3.select(this).call(axis.scale(y[d])); })
+      //     .append("svg:text")
+      //       .attr("text-anchor", "middle")
+      //       .attr("y", -9)
+      //       .text(String);
+
+      //   // Add and store a brush for each axis.
+      //   g.append("svg:g")
+      //       .attr("class", "brush")
+      //       .each(function(d) { d3.select(this).call(y[d].brush = d3.svg.brush().y(y[d]).on("brush", brush)); })
+      //     .selectAll("rect")
+      //       .attr("x", -8)
+      //       .attr("width", 16);
+      // });
+
+      // function position(d) {
+      //   var v = dragging[d];
+      //   return v == null ? x(d) : v;
+      // }
+
+      // function transition(g) {
+      //   return g.transition().duration(500);
+      // }
+
+      // // Returns the path for a given data point.
+      // function path(d) {
+      //   return line(dimensions.map(function(p) { return [position(p), y[p](d[p])]; }));
+      // }
+
+      // // Handles a brush event, toggling the display of foreground lines.
+      // function brush() {
+      //   var actives = dimensions.filter(function(p) { return !y[p].brush.empty(); }),
+      //       extents = actives.map(function(p) { return y[p].brush.extent(); });
+      //   foreground.style("display", function(d) {
+      //     return actives.every(function(p, i) {
+      //       return extents[i][0] <= d[p] && d[p] <= extents[i][1];
+      //     }) ? null : "none";
+      //   });
+      // }
 
     </script>
   </body>
