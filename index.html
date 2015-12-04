@@ -4,6 +4,7 @@
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
     <title>Parallel Coordinates</title>
     <style type="text/css">
+    
 
 svg {
   font: 10px sans-serif;
@@ -375,5 +376,16 @@ svg {
       // }
 
     </script>
+    <div id="slider"></div>
+    <script src="d3.slider.js"></script>
+    <link rel="stylesheet" href="d3.slider.css" />  
+    <script>
+
+      d3.select('#slider').call(d3.slider().axis(true).min(1997).max(2014).step(1).on("slide", function(ext, value) {
+        year = value;
+        console.log("Event" + value);
+      }));
+    </script>
+
   </body>
 </html>
