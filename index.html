@@ -45,11 +45,28 @@ svg {
     <script type="text/javascript" src="d3/d3.min.js"></script>
     <script src="topojson.min.js"></script>
     <script src="node_modules/datamaps/dist/datamaps.world.min.js"></script>
+    <div id="slider"></div>
+    <script src="d3.slider.js"></script>
+    <link rel="stylesheet" href="d3.slider.css" />  
+    <script>
+
+      d3.select('#slider').call(d3.slider().axis(true).min(1997).max(2013).step(1).on("slide", function(ext, value) {
+        year = value;
+        updateMapByYear();
+      }));
+    </script>
     <div id="container" style="position: relative; width: 1100px; height: 900px;"></div>
     <script type="text/javascript">
 
-
       var countryNames = ["Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi", "Cameroon", "Chad", "Djibouti", "Egypt", "Equatorial Guinea", "Eritrea", "Ethiopia", "Gabon", "Gambia", "Ghana", "Guinea", "Guinea-Bissau", "Ivory Coast", "Kenya", "Lesotho", "Liberia", "Libya", "Madagascar", "Malawi", "Mali", "Mauritania", "Morocco", "Mozambique", "Namibia", "Niger", "Nigeria", "Republic of Congo", "Rwanda", "Senegal", "Sierra Leone", "Somalia", "South Africa", "South Sudan", "Sudan", "Swaziland", "Tanzania", "Togo", "Tunisia", "Uganda", "Zambia", "Zimbabwe"];
+
+      var baseYear = 1997;
+      var endYear = 2014;
+      var yearRange = endYear - baseYear;
+
+      var countryArray = {};
+
+      var transitMatrix = {};
 
       // Country Codes
 
@@ -105,76 +122,23 @@ svg {
       var longs = {};
       var lats = {};
 
-      var sums = {};
-      sums["Algeria"] = 0;
-      sums["Angola"] = 0;
-      sums["Benin"] = 0;
-      sums["Botswana"] = 0;
-      sums["Burkina Faso"] = 0;
-      sums["Burundi"] = 0;
-      sums["Cameroon"] = 0;
-      sums["Chad"] = 0;
-      sums["Djibouti"] = 0;
-      sums["Egypt"] = 0;
-      sums["Equatorial Guinea"] = 0;
-      sums["Eritrea"] = 0;
-      sums["Ethiopia"] = 0;
-      sums["Gabon"] = 0;
-      sums["Gambia"] = 0;
-      sums["Ghana"] =  0;
-      sums["Guinea"] = 0;
-      sums["Guinea-Bissau"] = 0;
-      sums["Ivory Coast"] = 0;
-      sums["Kenya"] = 0;
-      sums["Lesotho"] = 0;
-      sums["Liberia"] = 0;
-      sums["Libya"] = 0;
-      sums["Madagascar"] = 0;
-      sums["Malawi"] = 0;
-      sums["Mali"] = 0;
-      sums["Mauritania"] = 0;
-      sums["Morocco"] = 0;
-      sums["Mozambique"] = 0;
-      sums["Namibia"] = 0
-      sums["Niger"] = 0;
-      sums["Nigeria"] = 0;
-      sums["Republic of Congo"] = 0;
-      sums["Rwanda"] = 0;
-      sums["Senegal"] = 0;
-      sums["Sierra Leone"] = 0;
-      sums["Somalia"] = 0;
-      sums["South Africa"] = 0;
-      sums["South Sudan"] = 0;
-      sums["Sudan"] = 0;
-      sums["Swaziland"] = 0;
-      sums["Tanzania"] = 0;
-      sums["Togo"] = 0;
-      sums["Tunisia"] = 0;
-      sums["Uganda"] = 0;
-      sums["Zambia"] = 0;
-      sums["Zimbabwe"] = 0;
+      var year = 2005;
+
+      var map = null;
 
       var dataset = {};
-
       var series = [];
 
-      var year = 1999;
+      var arcs = [];
 
-      d3.csv("conflictSize.csv", function(conflicts) {
-
-        conflicts.forEach(function(c) {
-          if(countryNames.indexOf(c.COUNTRY) !== -1) {
-            if(!isNaN(parseInt(c.FATALITIES)) && parseInt(c.YEAR) === year) sums[c.COUNTRY] += parseInt(c.FATALITIES);
-          }
-        })
-
-        //creat shading series
+      var updateMapByYear = function() {
+        dataset = {};
+        series = [];
         countryNames.forEach(function(n) {
           var code = codes[n];
-          var numberOfRefugees = sums[n];
-          console.log(n);
-          console.log(sums[n]);
-          series.push([code, numberOfRefugees])
+          var numberOfRefugees = countryArray[n].casualties[year];
+          console.log(countryArray[n].casualties[year]);
+          series.push([code, numberOfRefugees]);
         });
 
         var onlyValues = series.map(function(obj){ return obj[1]; });
@@ -190,10 +154,112 @@ svg {
             dataset[iso] = { numberOfThings: value, fillColor: paletteScale(value) };
         });
 
-        d3.csv("countries.csv", function(countries) {
-          countries.forEach(function(c) {
-            longs[c.country] = parseFloat(c.longitude);
-            lats[c.country] = parseFloat(c.latitude);
+        var toRemove = document.getElementById('container');
+        toRemove.parentNode.removeChild(toRemove);
+
+        var div = document.createElement('div');
+        document.body.appendChild(div);
+        div.id = 'container';
+        div.style = "position: relative; width: 1100px; height: 900px;";
+
+        var map = new Datamap({
+          element: document.getElementById('container'),
+          projection: 'mercator',
+          fills: { defaultFill: '#F5F5F5' },
+          data: dataset,
+          geographyConfig: {
+              borderColor: '#DEDEDE',
+              highlightBorderWidth: 2,
+              // don't change color on mouse hover
+              highlightFillColor: function(geo) {
+                  return geo['fillColor'] || '#F5F5F5';
+              },
+              // only change border
+              highlightBorderColor: '#B7B7B7'
+          }
+        });
+      }
+
+    d3.csv("conflictSize.csv", function(conflicts) {
+
+      for(var i = 0; i < countryNames.length; i++) {
+        var country = {};
+        country.code = null;
+        country.casualties = {};
+
+        for(var j = 0; j < yearRange; j++) {
+          country.casualties[baseYear + j] = 0;
+        }
+
+        var name = countryNames[i];
+        countryArray[name] = country;
+      }
+
+      conflicts.forEach(function(c) {
+        if(countryNames.indexOf(c.COUNTRY) !== -1) {
+          if(!isNaN(parseInt(c.FATALITIES)) && parseInt(c.YEAR) >= baseYear && parseInt(c.YEAR) < endYear) {
+            countryArray[c.COUNTRY].casualties[c.YEAR] += parseInt(c.FATALITIES);
+          }
+        }
+      });
+
+      console.log(countryArray);
+
+      countryNames.forEach(function(n) {
+        var code = codes[n];
+        var numberOfRefugees = countryArray[n].casualties[year];
+        series.push([code, numberOfRefugees])
+      });
+
+      var onlyValues = series.map(function(obj){ return obj[1]; });
+      var minValue = Math.min.apply(null, onlyValues), maxValue = Math.max.apply(null, onlyValues);
+
+      // color palette
+      var paletteScale = d3.scale.linear()
+              .domain([minValue,maxValue])
+              .range(["#EFEFFF","#02386F"]);
+
+      series.forEach(function(item){ //
+          var iso = item[0], value = item[1];
+          dataset[iso] = { numberOfThings: value, fillColor: paletteScale(value) };
+      });
+
+      d3.csv("countries.csv", function(countries) {
+        countries.forEach(function(c) {
+          longs[c.country] = parseFloat(c.longitude);
+          lats[c.country] = parseFloat(c.latitude);
+          transitMatrix[c.country] = {};
+          countries.forEach(function(c2) {
+            transitMatrix[c.country][c2.country] = 0;
+          });
+        });
+
+        d3.csv('3countries.csv', function(migrations) {
+          migrations.forEach(function(m) {
+            transitMatrix[m.origin][m.destination] += parseInt(m.number);
+          });
+
+
+
+          countryNames.forEach(function(c) {
+            countries.forEach(function(c2) {
+              if(transitMatrix[c] !== undefined) {
+                if(transitMatrix[c][c2.country] > 100) {
+                  var arc = {};
+                  console.log(lats[c2.country]);
+
+                  arc.origin = {
+                    latitude: lats[c],
+                    longitude: longs[c]
+                  };
+                  arc.destination = {
+                    latitude: lats[c2.country],
+                    longitude: longs[c2.country]
+                  };
+                  arcs.push(arc);
+                }
+              }
+            });
           });
 
           var map = new Datamap({
@@ -211,24 +277,35 @@ svg {
                 // only change border
                 highlightBorderColor: '#B7B7B7'
             }
-        });
-
-          map.arc([{
-            origin: {
-              latitude: lats['Algeria'],
-              longitude: longs['Algeria']
-            },
-            destination: {
-              latitude: lats['France'],
-              longitude: longs['France']
-            }
-            }], {
-              greatArc: true,
-              animationSpeed: 2000
           });
 
+          map.arc(arcs, {
+            greatArc: true,
+            animationSpeed: 1
+          });
+          
+          console.log(arcs);
         });
+
       });
+
+    });
+
+            // map.arc([{
+            //   origin: {
+            //     latitude: lats['Algeria'],
+            //     longitude: longs['Algeria']
+            //   },
+            //   destination: {
+            //     latitude: lats['France'],
+            //     longitude: longs['France']
+            //   }
+            //   }], {
+            //     greatArc: true,
+            //     animationSpeed: 2000
+            // });
+      //   });
+      // };
 
 
       /////// Parallel Coordinates //////
@@ -376,16 +453,5 @@ svg {
       // }
 
     </script>
-    <div id="slider"></div>
-    <script src="d3.slider.js"></script>
-    <link rel="stylesheet" href="d3.slider.css" />  
-    <script>
-
-      d3.select('#slider').call(d3.slider().axis(true).min(1997).max(2014).step(1).on("slide", function(ext, value) {
-        year = value;
-        console.log("Event" + value);
-      }));
-    </script>
-
   </body>
 </html>
